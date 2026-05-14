@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebGIS NDMI - Edukasi Petani</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.css" />
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-success">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">WebGIS NDMI</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <button class="btn btn-outline-light me-2" data-bs-toggle="modal" data-bs-target="#guideModal">Panduan</button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="btn btn-outline-light me-2" data-bs-toggle="modal" data-bs-target="#calculatorModal">Kalkulator NDMI</button>
+                    </li>
+                </ul>
+                <form class="d-flex" id="searchForm">
+                    <input class="form-control me-2" type="search" placeholder="Cari lokasi..." id="searchInput">
+                    <button class="btn btn-outline-light" type="submit">Cari</button>
+                </form>
+            </div>
+        </div>
+    </nav>
+
+    <div id="map" class="map-container"></div>
+
+    <div id="info" class="info-panel">
+        <h4>Informasi Lokasi</h4>
+        <p><strong>Koordinat:</strong> <span id="coords">-</span></p>
+        <p><strong>NDMI:</strong> <span id="ndmi-value">-</span></p>
+        <p><strong>Suhu:</strong> <span id="temperature">-</span> °C</p>
+        <p><strong>Rekomendasi Tanaman:</strong> <span id="recommendation">-</span></p>
+        <button class="btn btn-info btn-sm mt-2" data-bs-toggle="modal" data-bs-target="#ndmiModal">Info NDMI</button>
+    </div>
+
+    <!-- Modal Panduan -->
+    <div class="modal fade" id="guideModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Panduan Penggunaan WebGIS NDMI</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <ol>
+                        <li>Gunakan search box di navbar untuk mencari lokasi yang ingin ditanami.</li>
+                        <li>Klik pada peta untuk mendapatkan informasi kelembaban tanah (NDMI), suhu, dan rekomendasi tanaman.</li>
+                        <li>NDMI menunjukkan tingkat kelembaban: nilai tinggi (>0.5) berarti lembab, cocok untuk padi; sedang (0-0.5) untuk kedelai; rendah (<0) untuk gandum.</li>
+                        <li>Gunakan <strong>Kalkulator NDMI</strong> untuk menghitung nilai NDMI berdasarkan nilai NIR dan SWIR yang Anda ketahui.</li>
+                        <li>Klik "Info NDMI" untuk penjelasan lebih lanjut tentang indeks ini.</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Info NDMI -->
+    <div class="modal fade" id="ndmiModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">📊 Panduan Lengkap NDMI (Normalized Difference Moisture Index)</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body ndmi-info-body">
+                    <!-- Tabs untuk navigasi -->
+                    <ul class="nav nav-tabs mb-3" id="ndmiTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="definisi-tab" data-bs-toggle="tab" data-bs-target="#definisi">Definisi</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="teknis-tab" data-bs-toggle="tab" data-bs-target="#teknis">Teknis</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="aplikasi-tab" data-bs-toggle="tab" data-bs-target="#aplikasi">Aplikasi</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="pangan-tab" data-bs-toggle="tab" data-bs-target="#pangan">Ketahanan Pangan</button>
+                        </li>
+                    </ul>
+
+                    <!-- Tab Content -->
+                    <div class="tab-content" id="ndmiTabContent">
+                        <!-- Tab 1: Definisi -->
+                        <div class="tab-pane fade show active" id="definisi">
+                            <div class="info-section">
+                                <h6>🌱 Apa itu NDMI?</h6>
+                                <p>NDMI (Normalized Difference Moisture Index) adalah indeks yang mengukur tingkat <strong>kelembaban tanah dan vegetasi</strong> menggunakan data citra satelit untuk mendukung keputusan pertanian yang lebih baik.</p>
+                                
+                                <h6 class="mt-3">📈 Rentang Nilai NDMI</h6>
+                                <div class="value-range">
+                                    <div class="range-item">
+                                        <span class="range-color" style="background: linear-gradient(135deg, #007bff 0%, #00d4ff 100%);"></span>
+                                        <span><strong>> 0.5:</strong> Sangat Lembab ✓ (Ideal untuk padi, jagung)</span>
+                                    </div>
+                                    <div class="range-item">
+                                        <span class="range-color" style="background: linear-gradient(135deg, #28a745 0%, #20e3b2 100%);"></span>
+                                        <span><strong>0 - 0.5:</strong> Lembab Sedang (Cocok untuk kedelai, kacang)</span>
+                                    </div>
+                                    <div class="range-item">
+                                        <span class="range-color" style="background: linear-gradient(135deg, #ffc107 0%, #ffed4e 100%);"></span>
+                                        <span><strong>< 0:</strong> Kering (Butuh irigasi atau varietas toleran kering)</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tab 2: Teknis -->
+                        <div class="tab-pane fade" id="teknis">
+                            <div class="info-section">
+                                <h6>🔬 Rumus Perhitungan</h6>
+                                <div class="formula-box">
+                                    <strong>NDMI = (NIR - SWIR) / (NIR + SWIR)</strong>
+                                </div>
+
+                                <h6 class="mt-3">📡 Sumber Data Satelit Sentinel-2</h6>
+                                <div class="tech-info">
+                                    <div class="tech-item">
+                                        <span class="badge bg-info">NIR</span>
+                                        <strong>Near-Infrared Band (Pita 8)</strong>
+                                        <p>Mendeteksi radiasi inframerah dekat yang dipancarkan oleh vegetasi dan tanah. Sangat sensitif terhadap kehadiran air dalam tanah.</p>
+                                    </div>
+                                    <div class="tech-item">
+                                        <span class="badge bg-warning">SWIR</span>
+                                        <strong>Shortwave Infrared Band (Pita 11)</strong>
+                                        <p>Mendeteksi radiasi inframerah gelombang pendek. Lebih sensitif terhadap kelembaban tanah dan komposisi mineral.</p>
+                                    </div>
+                                </div>
+
+                                <h6 class="mt-3">💡 Interpretasi</h6>
+                                <ul>
+                                    <li>NDMI tinggi → Kandungan air tinggi di tanah/vegetasi</li>
+                                    <li>NDMI rendah → Kandungan air rendah (kondisi kering)</li>
+                                    <li>Perubahan NDMI dari waktu ke waktu → Indikator status kesehatan tanaman</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Tab 3: Aplikasi -->
+                        <div class="tab-pane fade" id="aplikasi">
+                            <div class="info-section">
+                                <h6>🎯 Kegunaan NDMI dalam Pertanian</h6>
+                                <div class="application-list">
+                                    <div class="app-item">
+                                        <span class="app-icon">💧</span>
+                                        <div>
+                                            <strong>Pemantauan Kelembaban Tanaman</strong>
+                                            <p>Memantau status hidrasi tanaman secara real-time untuk mengetahui kapan irigasi diperlukan.</p>
+                                        </div>
+                                    </div>
+                                    <div class="app-item">
+                                        <span class="app-icon">🏜️</span>
+                                        <div>
+                                            <strong>Deteksi Dini Kekeringan</strong>
+                                            <p>Mengidentifikasi area pertanian yang mengalami stress kekeringan lebih awal untuk tindakan mitigasi.</p>
+                                        </div>
+                                    </div>
+                                    <div class="app-item">
+                                        <span class="app-icon">💧</span>
+                                        <div>
+                                            <strong>Optimasi Irigasi</strong>
+                                            <p>Menyesuaikan jadwal dan jumlah air irigasi berdasarkan kebutuhan aktual, menghemat air dan biaya operasional.</p>
+                                        </div>
+                                    </div>
+                                    <div class="app-item">
+                                        <span class="app-icon">🌾</span>
+                                        <div>
+                                            <strong>Rekomendasi Tanaman</strong>
+                                            <p>Membantu petani memilih varietas tanaman yang paling sesuai dengan kondisi kelembaban lahan.</p>
+                                        </div>
+                                    </div>
+                                    <div class="app-item">
+                                        <span class="app-icon">📊</span>
+                                        <div>
+                                            <strong>Prediksi Hasil Panen</strong>
+                                            <p>Memperkirakan produktivitas berdasarkan kondisi kelembaban selama musim tanam.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tab 4: Ketahanan Pangan -->
+                        <div class="tab-pane fade" id="pangan">
+                            <div class="info-section">
+                                <h6>🍽️ Hubungan dengan Krisis Pangan</h6>
+                                <p>NDMI memainkan peran penting dalam menjaga <strong>ketahanan pangan nasional</strong> dengan:</p>
+                                
+                                <div class="food-security-box">
+                                    <div class="security-item">
+                                        <h6>⚡ Respons Cepat Terhadap Kekeringan</h6>
+                                        <p>Membantu pengambil keputusan mengambil langkah lebih cepat untuk menjaga ketersediaan pangan dan mengurangi kehilangan hasil pertanian akibat perubahan iklim.</p>
+                                    </div>
+                                    <div class="security-item">
+                                        <h6>🎯 Optimasi Pola Tanam</h6>
+                                        <p>Informasi kelembaban yang akurat membantu petani menyesuaikan pola tanam, irigasi, dan pemilihan varietas tanaman sehingga produksi lebih stabil dan berkelanjutan.</p>
+                                    </div>
+                                    <div class="security-item">
+                                        <h6>🌍 Mitigasi Risiko Iklim</h6>
+                                        <p>Dengan data kelembaban yang tepat, kerugian panen akibat perubahan iklim dan kekeringan dapat berkurang secara signifikan, menjamin pasokan pangan yang lebih stabil.</p>
+                                    </div>
+                                </div>
+
+                                <h6 class="mt-3">📋 Manfaat Langsung untuk Ketahanan Pangan</h6>
+                                <ul>
+                                    <li>✅ <strong>Deteksi dini kekeringan lahan pertanian</strong></li>
+                                    <li>✅ <strong>Rekomendasi tanaman sesuai kondisi kelembaban</strong></li>
+                                    <li>✅ <strong>Optimasi irigasi untuk efisiensi air</strong></li>
+                                    <li>✅ <strong>Prediksi hasil panen dan mitigasi risiko</strong></li>
+                                    <li>✅ <strong>Edukasi petani tentang ketahanan pangan</strong></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Kalkulator NDMI -->
+    <div class="modal fade" id="calculatorModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Kalkulator NDMI</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="calculator-container">
+                        <div class="mb-3">
+                            <label for="nirInput" class="form-label">Nilai NIR (Near-Infrared):</label>
+                            <input type="number" class="form-control" id="nirInput" placeholder="Masukkan nilai NIR" step="0.01" min="0" max="1">
+                            <small class="text-muted">Range: 0 - 1</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="swirInput" class="form-label">Nilai SWIR (Shortwave Infrared):</label>
+                            <input type="number" class="form-control" id="swirInput" placeholder="Masukkan nilai SWIR" step="0.01" min="0" max="1">
+                            <small class="text-muted">Range: 0 - 1</small>
+                        </div>
+                        <button class="btn btn-primary w-100 mb-3" id="calculateBtn">Hitung NDMI</button>
+                        <div id="resultContainer" style="display: none;">
+                            <div class="alert alert-info">
+                                <h5>Hasil Perhitungan</h5>
+                                <p><strong>NDMI:</strong> <span id="ndmiResult">-</span></p>
+                                <p><strong>Interpretasi:</strong> <span id="ndmiInterpretation">-</span></p>
+                                <p><strong>Rekomendasi Tanaman:</strong> <span id="ndmiRecommendation">-</span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
